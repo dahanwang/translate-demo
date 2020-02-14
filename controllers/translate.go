@@ -5,12 +5,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/astaxie/beego"
 	"math/rand"
 	"strconv"
 	"strings"
 	"translate-demo/models"
 	"translate-demo/utils"
-	"github.com/astaxie/beego"
 )
 
 // Operations about Users
@@ -25,21 +25,7 @@ type TranslateController struct {
 // @Failure 403 body is empty
 // @router / [post]
 func (u *TranslateController) Post() {
-	var user models.User
-	json.Unmarshal(u.Ctx.Input.RequestBody, &user)
-	uid := models.AddUser(user)
-	u.Data["json"] = map[string]string{"uid": uid}
-	u.ServeJSON()
-}
-
-// @Title GetAll
-// @Description get all Users
-// @Success 200 {object} models.User
-// @router / [get]
-func (u *TranslateController) GetAll() {
-	users := models.GetAllUsers()
-	u.Data["json"] = users
-	u.ServeJSON()
+	translate(u)
 }
 
 // @Title Get
@@ -48,15 +34,31 @@ func (u *TranslateController) GetAll() {
 // @Success 200 {object} models.User
 // @Failure 403 :uid is empty
 // @router /:uid [get]
+// http://localhost:8080/odin/translate?to=zh&data=xx
 func (u *TranslateController) Get() {
-	//data := u.GetString("data")
-	//hash := md5.Sum([]byte(data))
-	//u.Ctx.WriteString("data="+data+",hash="+hex.EncodeToString(hash[:]))
+	translate(u)
+}
 
-	data := "Coronaviruses are a large family of viruses that cause disease in mammals and birds. Coronaviruses can cause illnesses that range from the common cold to much more severe illnesses like Middle East Respiratory Syndrome (MERS) and Severe Acute Respiratory Syndrome (SARS)."
-	data = strings.Replace(data, " ", "", -1)
-	//data := "Hello"
-	transDataStr := translateByBaidu(data,"auto", "zh")
+func translate(u *TranslateController) {
+	data := u.GetString("data")
+	tolg := u.GetString("to") // 目标语言
+
+	if tolg == "" {
+		tolg = "en"
+	}
+	hash := md5.Sum([]byte(data))
+	md5 := hex.EncodeToString(hash[:])
+
+	cacheTranslate := models.HGetTranslate(md5, tolg)
+	if cacheTranslate != "" {
+		writeStr := "原文字：" + data +"\n\n"+ "目标语种："+tolg+"\n\n" + "翻译文字：" +cacheTranslate
+		u.Ctx.WriteString("cached.....\n\n" + writeStr)
+		return
+	}
+
+	// translate
+	replaceData := strings.Replace(data, " ", "", -1)
+	transDataStr := translateByBaidu(replaceData,"auto", tolg)
 	fmt.Println("transdata = " + transDataStr)
 
 	var transData trans_data
@@ -65,10 +67,26 @@ func (u *TranslateController) Get() {
 	}
 
 	fmt.Println(transData)
-	for i:=0; i < len(transData.Trans_result); i++ {
-		result:=transData.Trans_result[i]
-		u.Ctx.WriteString(result.Dst)
+
+	if len(transData.Trans_result) >1 {
+		fmt.Println("transdata result len > 1")
 	}
+
+	result:=transData.Trans_result[0]
+	writeStr := "原文字：" + data +"\n\n"+ "原语种："+transData.From+"\n\n"+ "目标语种："+tolg+"\n\n" + "翻译文字：" +result.Dst
+	u.Ctx.WriteString(writeStr)
+
+	/*
+		for i:=0; i < len(transData.Trans_result); i++ {
+			result:=transData.Trans_result[i]
+
+			writeStr := "原文字：" + data +"\n\n"+ "原语种："+transData.From+"\n\n" + "翻译文字：" +result.Dst
+			u.Ctx.WriteString(writeStr)
+		}
+	*/
+
+	// cache
+	models.HSetTranslat(md5,tolg, result.Dst)
 }
 
 type trans_data struct {
@@ -88,9 +106,9 @@ func translateByBaidu(q string,from string,to string) string {
 	data := appid + q +salt+ "Z09vzLtis5ZjVDKWwhbX"
 	signHash := md5.Sum([]byte(data))
 	url := "http://api.fanyi.baidu.com/api/trans/vip/translate?"
-	url +="q="+q
-	url += "&from="+from
-	url += "&to="+to
+	url +="q=" + q
+	url += "&from=" + from
+	url += "&to=" + to
 	url += "&appid=" + appid
 	url += "&salt=" + salt
 	url += "&sign=" + hex.EncodeToString(signHash[:])
@@ -98,41 +116,5 @@ func translateByBaidu(q string,from string,to string) string {
 	response := utils.HttpGet(url)
 
 	return response
-	//fmt.Println(response)
-}
-
-// @Title Update
-// @Description update the user
-// @Param	uid		path 	string	true		"The uid you want to update"
-// @Param	body		body 	models.User	true		"body for user content"
-// @Success 200 {object} models.User
-// @Failure 403 :uid is not int
-// @router /:uid [put]
-func (u *TranslateController) Put() {
-	uid := u.GetString(":uid")
-	if uid != "" {
-		var user models.User
-		json.Unmarshal(u.Ctx.Input.RequestBody, &user)
-		uu, err := models.UpdateUser(uid, &user)
-		if err != nil {
-			u.Data["json"] = err.Error()
-		} else {
-			u.Data["json"] = uu
-		}
-	}
-	u.ServeJSON()
-}
-
-// @Title Delete
-// @Description delete the user
-// @Param	uid		path 	string	true		"The uid you want to delete"
-// @Success 200 {string} delete success!
-// @Failure 403 uid is empty
-// @router /:uid [delete]
-func (u *TranslateController) Delete() {
-	uid := u.GetString(":uid")
-	models.DeleteUser(uid)
-	u.Data["json"] = "delete success!"
-	u.ServeJSON()
 }
 

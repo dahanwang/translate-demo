@@ -63,36 +63,9 @@ func init() {
 
     beego.GlobalControllerRouter["translate-demo/controllers:TranslateController"] = append(beego.GlobalControllerRouter["translate-demo/controllers:TranslateController"],
         beego.ControllerComments{
-            Method: "GetAll",
-            Router: `/`,
-            AllowHTTPMethods: []string{"get"},
-            MethodParams: param.Make(),
-            Filters: nil,
-            Params: nil})
-
-    beego.GlobalControllerRouter["translate-demo/controllers:TranslateController"] = append(beego.GlobalControllerRouter["translate-demo/controllers:TranslateController"],
-        beego.ControllerComments{
             Method: "Get",
             Router: `/:uid`,
             AllowHTTPMethods: []string{"get"},
-            MethodParams: param.Make(),
-            Filters: nil,
-            Params: nil})
-
-    beego.GlobalControllerRouter["translate-demo/controllers:TranslateController"] = append(beego.GlobalControllerRouter["translate-demo/controllers:TranslateController"],
-        beego.ControllerComments{
-            Method: "Put",
-            Router: `/:uid`,
-            AllowHTTPMethods: []string{"put"},
-            MethodParams: param.Make(),
-            Filters: nil,
-            Params: nil})
-
-    beego.GlobalControllerRouter["translate-demo/controllers:TranslateController"] = append(beego.GlobalControllerRouter["translate-demo/controllers:TranslateController"],
-        beego.ControllerComments{
-            Method: "Delete",
-            Router: `/:uid`,
-            AllowHTTPMethods: []string{"delete"},
             MethodParams: param.Make(),
             Filters: nil,
             Params: nil})
